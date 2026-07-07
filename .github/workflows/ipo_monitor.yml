@@ -1,0 +1,76 @@
+name: IPO Discord Monitor
+
+on:
+  # Weekday schedule (Mon-Fri) at multiple times
+  # Cron is in UTC. IST = UTC + 5:30
+  schedule:
+    # 10:00 AM IST = 04:30 UTC
+    - cron: '30 4 * * 1-5'
+    # 2:00 PM IST = 08:30 UTC
+    - cron: '30 8 * * 1-5'
+    # 6:00 PM IST = 12:30 UTC
+    - cron: '30 12 * * 1-5'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no Discord notifications)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers and dependencies
+        run: playwright install chromium --with-deps
+
+      - name: Restore state file
+        uses: actions/cache@v4
+        with:
+          path: state.json
+          key: ipo-state-${{ github.run_id }}
+          restore-keys: |
+            ipo-state-
+
+      - name: Run IPO Monitor
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python ipo_monitor.py --dry-run --verbose
+          else
+            python ipo_monitor.py --verbose
+          fi
+
+      - name: Save state file
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: ipo-state-${{ github.run_id }}
