@@ -10,7 +10,7 @@ import os
 from datetime import datetime, date
 from typing import Any, Optional
 
-from config import STATE_FILE, IPOState
+from config import STATE_FILE, IPOState, SUBSCRIPTION_MILESTONES
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,9 @@ def _default_ipo_entry() -> dict:
             "open_alert": False,
             "close_alert": False,
             "listing_alert": False,
+            "upcoming_alert": False,
             "daily": [],
+            "milestones_notified": [],
         },
         "listing_price": None,
         "listing_close_price": None,
@@ -213,6 +215,35 @@ class StateManager:
         entry = self.get_ipo(symbol)
         if entry:
             entry["notifications_sent"][notification_type] = True
+
+    def check_milestone_crossed(
+        self, symbol: str, new_total: Optional[float]
+    ) -> list[int]:
+        """Check if subscription total crossed any milestones.
+        
+        Args:
+            symbol: The IPO symbol.
+            new_total: The current total subscription multiplier.
+            
+        Returns:
+            List of newly crossed milestones (e.g., [1, 3, 5]).
+        """
+        if new_total is None:
+            return []
+        
+        entry = self.get_ipo(symbol)
+        if not entry:
+            return []
+        
+        already_notified = entry["notifications_sent"].setdefault("milestones_notified", [])
+        newly_crossed = []
+        
+        for milestone in SUBSCRIPTION_MILESTONES:
+            if new_total >= milestone and milestone not in already_notified:
+                newly_crossed.append(milestone)
+                already_notified.append(milestone)
+        
+        return newly_crossed
 
     def transition_state(self, symbol: str, new_state: str) -> Optional[str]:
         """Transition an IPO to a new lifecycle state.

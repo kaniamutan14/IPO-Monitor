@@ -10,7 +10,9 @@ on:
     - cron: '30 8 * * 1-5'
     # 6:00 PM IST = 12:30 UTC
     - cron: '30 12 * * 1-5'
-    
+    # Sunday 10:00 AM IST = 04:30 UTC (Weekly Digest)
+    - cron: '30 4 * * 0'
+  
   # Allow manual trigger
   workflow_dispatch:
     inputs:
@@ -62,11 +64,15 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          EXTRA_FLAGS=""
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python ipo_monitor.py --dry-run --verbose
-          else
-            python ipo_monitor.py --verbose
+            EXTRA_FLAGS="$EXTRA_FLAGS --dry-run"
           fi
+          # Add weekly digest flag on Sundays
+          if [ "$(date +%u)" = "7" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --weekly-digest"
+          fi
+          python ipo_monitor.py --verbose $EXTRA_FLAGS
 
       - name: Save state file
         if: always()

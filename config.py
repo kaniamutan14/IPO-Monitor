@@ -55,3 +55,6 @@ TRANSACTION_CHARGES_RATE = 0.0000345  # NSE transaction charges
 SEBI_CHARGES_RATE = 0.000001  # SEBI turnover charges
 STAMP_DUTY_RATE = 0.00015  # Stamp duty on sell
 GST_RATE = 0.18  # GST on transaction charges + SEBI charges
+
+# Subscription Milestones for alerts
+SUBSCRIPTION_MILESTONES = [1, 3, 5, 10, 20, 50, 100]

@@ -409,6 +409,208 @@ def send_listing_alert(
     return _send_webhook({"embeds": [embed]})
 
 
+def send_upcoming_ipo_alert(
+    symbol: str,
+    company_name: str,
+    price_band: tuple[Optional[float], Optional[float]],
+    lot_size: Optional[int],
+    open_date: Optional[str],
+    close_date: Optional[str],
+) -> bool:
+    """Send notification for a newly announced upcoming IPO."""
+    min_price, max_price = price_band
+    min_investment = "N/A"
+    if lot_size and max_price:
+        min_investment = _fmt_price(lot_size * max_price)
+    
+    embed = {
+        "title": f"📢 NEW IPO ANNOUNCED — {company_name}",
+        "description": f"**{symbol}** has been announced! Bidding opens on **{open_date or 'TBA'}**.",
+        "color": COLOR_GOLD,
+        "fields": [
+            {
+                "name": "💰 Price Band",
+                "value": f"{_fmt_price(min_price)} - {_fmt_price(max_price)}",
+                "inline": True,
+            },
+            {
+                "name": "📦 Lot Size",
+                "value": f"{lot_size or 'N/A'} shares",
+                "inline": True,
+            },
+            {
+                "name": "💵 Min Investment",
+                "value": min_investment,
+                "inline": True,
+            },
+            {
+                "name": "📅 Bidding Window",
+                "value": f"{open_date or 'TBA'} → {close_date or 'TBA'}",
+                "inline": False,
+            },
+        ],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": "IPO Monitor • NSE Data"},
+    }
+    
+    return _send_webhook({"embeds": [embed]})
+
+
+def send_milestone_alert(
+    symbol: str,
+    company_name: str,
+    milestone: int,
+    subscription: dict[str, Optional[float]],
+    close_date: Optional[str],
+) -> bool:
+    """Send alert when subscription crosses a milestone threshold."""
+    total_sub = subscription.get('total')
+    
+    # Build subscription breakdown
+    sub_lines = []
+    for cat, label in [('retail', 'Retail'), ('nii', 'NII'), ('qib', 'QIB'), ('employee', 'Employee')]:
+        val = subscription.get(cat)
+        if val is not None:
+            sub_lines.append(f"**{label}:** {_fmt_sub(val)}")
+    
+    if total_sub is not None:
+        sub_lines.append(f"\n**Overall Total:** {_fmt_sub(total_sub)}")
+    
+    subscription_text = "\n".join(sub_lines) if sub_lines else "No data"
+    
+    # Milestone emoji escalation
+    if milestone >= 50:
+        emoji = "🚀"
+    elif milestone >= 10:
+        emoji = "🔥"
+    elif milestone >= 5:
+        emoji = "⚡"
+    else:
+        emoji = "🎯"
+    
+    embed = {
+        "title": f"{emoji} SUBSCRIPTION MILESTONE — {company_name}",
+        "description": f"**{symbol}** total subscription just crossed **{milestone}x**!",
+        "color": COLOR_GOLD if milestone >= 10 else COLOR_BLUE,
+        "fields": [
+            {
+                "name": "📊 Subscription Breakdown",
+                "value": subscription_text,
+                "inline": False,
+            },
+            {
+                "name": "📅 Closes",
+                "value": close_date or "N/A",
+                "inline": True,
+            },
+        ],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": "IPO Monitor • NSE Data"},
+    }
+    
+    return _send_webhook({"embeds": [embed]})
+
+
+def send_weekly_digest(
+    open_ipos: list[dict],
+    closed_ipos: list[dict],
+    listed_ipos: list[dict],
+    upcoming_ipos: list[dict],
+) -> bool:
+    """Send a weekly summary digest of all tracked IPOs.
+    
+    Args:
+        open_ipos: List of dicts with keys: symbol, company_name, subscription_total, close_date
+        closed_ipos: List of dicts with keys: symbol, company_name, subscription_total
+        listed_ipos: List of dicts with keys: symbol, company_name, issue_price, listing_price, gain_pct, net_pnl
+        upcoming_ipos: List of dicts with keys: symbol, company_name, open_date
+    """
+    total_active = len(open_ipos) + len(closed_ipos) + len(listed_ipos) + len(upcoming_ipos)
+    
+    description_parts = [
+        f"📊 Open IPOs: **{len(open_ipos)}**",
+        f"📢 Upcoming: **{len(upcoming_ipos)}**",
+        f"🔒 Awaiting Listing: **{len(closed_ipos)}**",
+        f"🔔 Listed This Week: **{len(listed_ipos)}**",
+    ]
+    
+    fields = []
+    
+    # Upcoming IPOs section
+    if upcoming_ipos:
+        lines = []
+        for ipo in upcoming_ipos:
+            lines.append(f"📢 **{ipo['company_name']}** ({ipo['symbol']})\n    Opens: {ipo.get('open_date', 'TBA')}")
+        fields.append({
+            "name": "📢 Upcoming IPOs",
+            "value": "\n".join(lines)[:1024],
+            "inline": False,
+        })
+    
+    # Open IPOs section
+    if open_ipos:
+        lines = []
+        for ipo in open_ipos:
+            sub = ipo.get('subscription_total')
+            sub_str = f"{sub:.2f}x" if sub else "N/A"
+            lines.append(f"🟢 **{ipo['company_name']}** ({ipo['symbol']})\n    Sub: {sub_str} | Closes: {ipo.get('close_date', 'N/A')}")
+        fields.append({
+            "name": "🟢 Open for Bidding",
+            "value": "\n".join(lines)[:1024],
+            "inline": False,
+        })
+    
+    # Closed IPOs section
+    if closed_ipos:
+        lines = []
+        for ipo in closed_ipos:
+            sub = ipo.get('subscription_total')
+            sub_str = f"{sub:.2f}x" if sub else "N/A"
+            lines.append(f"🔒 **{ipo['company_name']}** ({ipo['symbol']})\n    Final Sub: {sub_str} | Listing Expected")
+        fields.append({
+            "name": "🔒 Awaiting Listing",
+            "value": "\n".join(lines)[:1024],
+            "inline": False,
+        })
+    
+    # Listed IPOs section
+    if listed_ipos:
+        lines = []
+        for ipo in listed_ipos:
+            gain_str = _fmt_pct(ipo.get('gain_pct'))
+            pnl = ipo.get('net_pnl')
+            pnl_str = _fmt_price(pnl) if pnl else "N/A"
+            lines.append(
+                f"🔔 **{ipo['company_name']}** ({ipo['symbol']})\n"
+                f"    {_fmt_price(ipo.get('issue_price'))} → {_fmt_price(ipo.get('listing_price'))} ({gain_str})\n"
+                f"    Net P&L/Lot: {pnl_str}"
+            )
+        fields.append({
+            "name": "🔔 Recently Listed",
+            "value": "\n".join(lines)[:1024],
+            "inline": False,
+        })
+    
+    if not fields:
+        fields.append({
+            "name": "ℹ️ Status",
+            "value": "No IPO activity this week.",
+            "inline": False,
+        })
+    
+    from datetime import date as _date
+    embed = {
+        "title": f"📋 WEEKLY IPO DIGEST — {_date.today().strftime('%d-%b-%Y')}",
+        "description": "\n".join(description_parts),
+        "color": COLOR_PURPLE,
+        "fields": fields,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": "IPO Monitor • Weekly Digest"},
+    }
+    
+    return _send_webhook({"embeds": [embed]})
+
+
 def send_error_alert(error_message: str, details: str = "") -> bool:
     """Send an error/warning notification."""
     embed = {

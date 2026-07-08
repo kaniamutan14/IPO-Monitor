@@ -493,7 +493,7 @@ class NSEClient:
     @staticmethod
     def extract_symbol(issue: dict) -> Optional[str]:
         """Extract symbol from an issue dict, trying multiple field names."""
-        for key in ('symbol', 'Symbol', 'SYMBOL', 'sym'):
+        for key in ('symbol', 'Symbol', 'SYMBOL', 'sym', 'htmSym'):
             if key in issue and issue[key]:
                 return str(issue[key]).strip()
         return None
@@ -501,7 +501,7 @@ class NSEClient:
     @staticmethod
     def extract_company_name(issue: dict) -> str:
         """Extract company name from an issue dict."""
-        for key in ('companyName', 'company_name', 'name', 'issuerCompany', 'Company Name'):
+        for key in ('companyName', 'company', 'company_name', 'name', 'issuerCompany', 'Company Name'):
             if key in issue and issue[key]:
                 return str(issue[key]).strip()
         return "Unknown Company"
@@ -524,12 +524,12 @@ class NSEClient:
         open_date = None
         close_date = None
         
-        for key in ('issueStartDate', 'openDate', 'startDate', 'issue_start_date'):
+        for key in ('issueStartDate', 'ipoStartDate', 'openDate', 'startDate', 'issue_start_date'):
             if key in issue and issue[key]:
                 open_date = str(issue[key]).strip()
                 break
         
-        for key in ('issueEndDate', 'closeDate', 'endDate', 'issue_end_date'):
+        for key in ('issueEndDate', 'ipoEndDate', 'closeDate', 'endDate', 'issue_end_date'):
             if key in issue and issue[key]:
                 close_date = str(issue[key]).strip()
                 break
@@ -599,7 +599,7 @@ class NSEClient:
                 return min_price, max_price
         
         # Try parsing a combined price band string
-        for key in ('priceBand', 'price_band', 'priceRange', 'issuePrice'):
+        for key in ('priceBand', 'priceRange', 'price_band', 'issuePrice'):
             if key in detail and isinstance(detail[key], str):
                 band_str = detail[key]
                 # Match patterns like '₹440 - ₹463' or '440-463' or '440 to 463'

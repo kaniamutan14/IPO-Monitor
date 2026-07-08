@@ -218,6 +218,6 @@ Weekdays only (Mon–Fri) for daily checks. Sunday for weekly digest.
 - [x] Rich Discord embeds
 - [x] Failure/error Discord alerts
 - [x] GitHub Actions workflow
-- [ ] Weekly summary digest (Phase 2)
-- [ ] Upcoming IPO alerts (Phase 2)
-- [ ] Subscription milestone alerts (Phase 2)
+- [x] Weekly summary digest (Phase 2 — implemented v4)
+- [x] Upcoming IPO alerts (Phase 2 — implemented v4)
+- [x] Subscription milestone alerts (Phase 2 — implemented v4)
