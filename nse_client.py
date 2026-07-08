@@ -25,7 +25,6 @@ from config import (
     NSE_CURRENT_ISSUES,
     NSE_IPO_DETAIL,
     NSE_PAST_ISSUES,
-    NSE_HISTORICAL_EQUITY,
     NSE_MAIN_PAGE,
     NSE_HEADERS,
     NSE_REQUEST_DELAY,
@@ -409,20 +408,25 @@ class NSEClient:
         return []
 
     def get_listing_day_price(self, symbol: str, listing_date_str: str) -> Optional[dict]:
-        """Fetch listing day OHLC prices from historical equity endpoint.
+        """Fetch listing day OHLC prices using yfinance.
         
-        Fallback method when past-issues endpoint doesn't include listing prices.
+        Replaces the restricted NSE historical endpoint.
         
         Args:
             symbol: The equity symbol.
-            listing_date_str: Listing date string (will try multiple formats).
+            listing_date_str: Listing date string.
             
         Returns:
             Dict with 'open', 'high', 'low', 'close' prices, or None.
         """
-        from datetime import datetime
+        from datetime import datetime, timedelta
+        try:
+            import yfinance as yf
+        except ImportError:
+            logger.error("yfinance is not installed. Run: pip install yfinance pandas")
+            return None
         
-        # Parse listing date to DD-MM-YYYY format required by NSE
+        # Parse listing date
         listing_date = None
         for fmt in ('%d-%b-%Y', '%d-%B-%Y', '%Y-%m-%d', '%d/%m/%Y'):
             try:
@@ -434,59 +438,43 @@ class NSEClient:
         if not listing_date:
             logger.warning(f"Could not parse listing date: {listing_date_str}")
             return None
+            
+        start_date = listing_date.strftime('%Y-%m-%d')
+        end_date = (listing_date + timedelta(days=1)).strftime('%Y-%m-%d')
         
-        date_formatted = listing_date.strftime('%d-%m-%Y')
+        logger.info(f"Fetching listing day price for {symbol} using yfinance ({start_date} to {end_date})")
         
-        logger.info(f"Fetching listing day price for {symbol} on {date_formatted}...")
-        data = self._request_with_retry(
-            NSE_HISTORICAL_EQUITY,
-            params={
-                "symbol": symbol,
-                "series": '["EQ","SM","ST"]',
-                "from": date_formatted,
-                "to": date_formatted,
-            }
-        )
-        
-        if not data:
-            return None
-        
-        # Extract from response — typically nested in data[0] or data.data[0]
-        records = []
-        if isinstance(data, list):
-            records = data
-        elif isinstance(data, dict):
-            for key in ('data', 'records', 'results'):
-                if key in data and isinstance(data[key], list):
-                    records = data[key]
+        # Try NSE (.NS) first, then fallback to BSE (.BO) for SME IPOs
+        df = None
+        for suffix in ('.NS', '.BO'):
+            ticker = f"{symbol}{suffix}"
+            logger.info(f"Trying ticker {ticker}...")
+            try:
+                # yfinance returns a pandas DataFrame
+                df = yf.Ticker(ticker).history(start=start_date, end=end_date)
+                if df is not None and not df.empty:
+                    logger.info(f"Successfully fetched data for {ticker}")
                     break
-        
-        if not records:
-            logger.warning(f"No historical data found for {symbol} on {date_formatted}")
+            except Exception as e:
+                logger.debug(f"yfinance error for {ticker}: {e}")
+                
+        if df is None or df.empty:
+            logger.warning(f"No historical data found for {symbol} on {start_date} via yfinance")
             return None
-        
-        record = records[0]
-        result = {
-            'open': None,
-            'high': None,
-            'low': None,
-            'close': None,
-        }
-        
-        for field, keys in [
-            ('open', ['CH_OPENING_PRICE', 'openPrice', 'open', 'OPEN']),
-            ('high', ['CH_TRADE_HIGH_PRICE', 'highPrice', 'high', 'HIGH']),
-            ('low', ['CH_TRADE_LOW_PRICE', 'lowPrice', 'low', 'LOW']),
-            ('close', ['CH_CLOSING_PRICE', 'closePrice', 'close', 'CLOSE', 'CH_LAST_TRADED_PRICE']),
-        ]:
-            for k in keys:
-                if k in record:
-                    result[field] = self.parse_price_value(record[k])
-                    if result[field]:
-                        break
-        
-        logger.info(f"Listing day prices for {symbol}: {result}")
-        return result
+            
+        try:
+            # yfinance returns np.float64, we must cast to Python float for JSON serialization
+            result = {
+                'open': float(df['Open'].iloc[0]),
+                'high': float(df['High'].iloc[0]),
+                'low': float(df['Low'].iloc[0]),
+                'close': float(df['Close'].iloc[0]),
+            }
+            logger.info(f"Listing day prices for {symbol}: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error parsing yfinance DataFrame for {symbol}: {e}")
+            return None
 
     # --- Data Extraction Helpers (flexible field access) ---
 
@@ -616,6 +604,28 @@ class NSEClient:
                         return price, price
                     except ValueError:
                         pass
+                        
+        # Check issueInfo dataList for Price Range
+        issue_info = detail.get('issueInfo', {})
+        if isinstance(issue_info, dict):
+            data_list = issue_info.get('dataList', [])
+            if isinstance(data_list, list):
+                for item in data_list:
+                    if isinstance(item, dict) and item.get('title') == 'Price Range':
+                        val = item.get('value', '')
+                        if val:
+                            numbers = re.findall(r'[\d,]+\.?\d*', val.replace(',', ''))
+                            if len(numbers) >= 2:
+                                try:
+                                    return float(numbers[0]), float(numbers[1])
+                                except ValueError:
+                                    pass
+                            elif len(numbers) == 1:
+                                try:
+                                    price = float(numbers[0])
+                                    return price, price
+                                except ValueError:
+                                    pass
         
         return min_price, max_price
 
@@ -630,6 +640,23 @@ class NSEClient:
                     return int(float(val))
                 except (ValueError, TypeError):
                     continue
+                    
+        # Check issueInfo dataList for Bid Lot or Minimum Order Quantity
+        issue_info = detail.get('issueInfo', {})
+        if isinstance(issue_info, dict):
+            data_list = issue_info.get('dataList', [])
+            if isinstance(data_list, list):
+                for item in data_list:
+                    if isinstance(item, dict) and item.get('title') in ('Bid Lot', 'Minimum Order Quantity'):
+                        val = item.get('value', '')
+                        if val:
+                            numbers = re.findall(r'[\d,]+\.?\d*', val.replace(',', ''))
+                            if numbers:
+                                try:
+                                    return int(float(numbers[0]))
+                                except ValueError:
+                                    pass
+                                    
         return None
 
     @staticmethod

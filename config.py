@@ -18,7 +18,6 @@ NSE_BASE_URL = "https://www.nseindia.com"
 NSE_CURRENT_ISSUES = f"{NSE_BASE_URL}/api/ipo-current-issue"
 NSE_IPO_DETAIL = f"{NSE_BASE_URL}/api/ipo-detail"  # ?symbol=X&series=EQ
 NSE_PAST_ISSUES = f"{NSE_BASE_URL}/api/public-past-issues"
-NSE_HISTORICAL_EQUITY = f"{NSE_BASE_URL}/api/historical/cm/equity"  # ?symbol=X&series=["EQ"]&from=DATE&to=DATE
 NSE_MAIN_PAGE = NSE_BASE_URL
 
 # NSE Request Config

@@ -2,3 +2,5 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 curl_cffi>=0.7.0
 playwright>=1.40.0
+yfinance>=0.2.36
+pandas>=2.0.0
