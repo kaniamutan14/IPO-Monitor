@@ -16,6 +16,7 @@ except ImportError:
 
 from config import (
     DISCORD_WEBHOOK_URL,
+    ETF_DISCORD_WEBHOOK_URL,
     DP_CHARGES,
     STT_SELL_RATE,
     TRANSACTION_CHARGES_RATE,
@@ -85,7 +86,7 @@ def calculate_selling_charges(
     stt = turnover * STT_SELL_RATE
     transaction_charges = turnover * TRANSACTION_CHARGES_RATE
     sebi_charges = turnover * SEBI_CHARGES_RATE
-    stamp_duty = turnover * STAMP_DUTY_RATE
+    stamp_duty = 0.0 # Stamp duty is only applicable on BUY side
     gst = (transaction_charges + sebi_charges) * GST_RATE
     dp_charges = DP_CHARGES  # Flat per scrip
     
@@ -102,17 +103,19 @@ def calculate_selling_charges(
     }
 
 
-def _send_webhook(payload: dict) -> bool:
+def _send_webhook(payload: dict, webhook_url: Optional[str] = None) -> bool:
     """Send a payload to the Discord webhook.
     
     Args:
         payload: The Discord webhook JSON payload.
+        webhook_url: Optional override for the webhook URL.
         
     Returns:
         True if sent successfully, False otherwise.
     """
-    if not DISCORD_WEBHOOK_URL:
-        logger.error("DISCORD_WEBHOOK_URL not configured!")
+    target_url = webhook_url or DISCORD_WEBHOOK_URL
+    if not target_url:
+        logger.error("Discord webhook URL not configured!")
         return False
 
     if requests is None:
@@ -121,7 +124,7 @@ def _send_webhook(payload: dict) -> bool:
     
     try:
         response = requests.post(
-            DISCORD_WEBHOOK_URL,
+            target_url,
             json=payload,
             timeout=10,
         )
@@ -135,7 +138,7 @@ def _send_webhook(payload: dict) -> bool:
             logger.warning(f"Discord rate limited. Retry after {retry_after}s")
             time.sleep(retry_after)
             # Retry once
-            response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+            response = requests.post(target_url, json=payload, timeout=10)
             return response.status_code == 204
         else:
             logger.error(f"Discord webhook failed: {response.status_code} - {response.text}")
@@ -643,3 +646,45 @@ def send_no_active_ipos() -> bool:
     }
     
     return _send_webhook({"embeds": [embed]})
+
+def send_etf_arbitrage_alert(
+    symbol: str,
+    inav: float,
+    ltp: float,
+    percent_gap: float
+) -> bool:
+    """Send an ETF Arbitrage alert."""
+    embed = {
+        "title": f"📈 {symbol} Arbitrage Found!",
+        "description": "Live Opportunity detected on NSE.",
+        "color": 3066993,
+        "fields": [
+            {"name": "iNAV", "value": str(inav), "inline": True},
+            {"name": "LTP", "value": str(ltp), "inline": True},
+            {"name": "Profit", "value": f"+{percent_gap:.2f}%", "inline": True},
+        ],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": "ETF Monitor • NSE Data"}
+    }
+    return _send_webhook({"embeds": [embed]}, webhook_url=ETF_DISCORD_WEBHOOK_URL)
+
+
+def send_etf_error_alert(error_message: str, details: str = "") -> bool:
+    """Send an error alert for ETF Monitor."""
+    embed = {
+        "title": "⚠️ ETF Monitor FAILED",
+        "description": f"Script crashed.\nError: `{error_message}`",
+        "color": 15158332,
+        "fields": [],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": "ETF Monitor"}
+    }
+    
+    if details:
+        embed["fields"].append({
+            "name": "Details",
+            "value": f"```\n{details[:900]}\n```",
+            "inline": False,
+        })
+    
+    return _send_webhook({"embeds": [embed]}, webhook_url=ETF_DISCORD_WEBHOOK_URL)

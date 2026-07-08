@@ -123,10 +123,10 @@ class NSEClient:
             from config import PLAYWRIGHT_TIMEOUT, PLAYWRIGHT_HEADLESS
             
             self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(
+            self._browser = self._playwright.firefox.launch(
                 headless=PLAYWRIGHT_HEADLESS,
                 args=[
-                    "--disable-blink-features=AutomationControlled",
+                    # Firefox doesn't use blink features flag
                 ]
             )
             
@@ -442,7 +442,7 @@ class NSEClient:
             NSE_HISTORICAL_EQUITY,
             params={
                 "symbol": symbol,
-                "series": '["EQ"]',
+                "series": '["EQ","SM","ST"]',
                 "from": date_formatted,
                 "to": date_formatted,
             }

@@ -11,6 +11,7 @@ if load_dotenv:
 
 # Discord
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+ETF_DISCORD_WEBHOOK_URL = os.getenv("ETF_DISCORD_WEBHOOK_URL", "")
 
 # NSE API Endpoints
 NSE_BASE_URL = "https://www.nseindia.com"
@@ -35,7 +36,7 @@ NSE_MAX_RETRIES = 2
 
 # Playwright Settings
 PLAYWRIGHT_TIMEOUT = 30000
-PLAYWRIGHT_HEADLESS = True
+PLAYWRIGHT_HEADLESS = False
 
 # State
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
