@@ -1,0 +1,48 @@
+name: ETF Arbitrage Monitor
+
+on:
+  # Trigger via external webhook (e.g. cron-job.org) for exact timing
+  repository_dispatch:
+    types: [trigger-etf-monitor]
+  
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers and dependencies
+        run: playwright install chromium --with-deps
+
+      - name: Run ETF Monitor
+        env:
+          # Keep standard webhook just in case other parts of the script imported it
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # The specific ETF webhook secret
+          ETF_DISCORD_WEBHOOK_URL: ${{ secrets.ETF_DISCORD_WEBHOOK_URL }}
+        run: |
+          python etf_monitor.py
