@@ -697,18 +697,18 @@ class NSEClient:
             logger.warning("No subscription data found in IPO detail")
             return result
         
-        # Map category names to our keys
+        # Map category substrings to our keys
         category_map = {
-            'total': ['total', 'Total', 'TOTAL', 'overall', 'Overall'],
-            'retail': ['retail', 'Retail', 'RETAIL', 'RII', 'Retail Individual Investors'],
-            'qib': ['qib', 'QIB', 'Qualified Institutional Buyers'],
-            'nii': ['nii', 'NII', 'Non-Institutional Investors', 'NII (bNII)', 'NII (sNII)', 'HNI', 'bNII', 'sNII'],
-            'employee': ['employee', 'Employee', 'EMPLOYEE', 'Emp'],
+            'total': ['total', 'overall'],
+            'retail': ['retail', 'rii'],
+            'qib': ['qib', 'qualified'],
+            'nii': ['nii', 'non institutional', 'non-institutional', 'hni'],
+            'employee': ['employee', 'emp'],
         }
         
         # Fields that might contain the subscription multiplier
         sub_fields = ['subscriptionTimes', 'noOfTimesSubscribed', 'timesSubscribed',
-                       'times_subscribed', 'subscription', 'ratio']
+                       'times_subscribed', 'subscription', 'ratio', 'noOfTotalMeant']
         
         for item in data_list:
             if not isinstance(item, dict):
@@ -739,8 +739,9 @@ class NSEClient:
             
             # Map to our category keys
             # Special handling: NII subtypes (bNII, sNII) aggregate into 'nii'
+            cat_name_lower = cat_name.lower()
             for our_key, possible_names in category_map.items():
-                if cat_name in possible_names:
+                if any(p in cat_name_lower for p in possible_names):
                     if our_key == 'nii' and result['nii'] is not None and sub_value is not None:
                         # If we already have NII, this might be a subcategory;
                         # don't overwrite if we got the main NII. Only sum bNII+sNII
@@ -749,6 +750,19 @@ class NSEClient:
                     else:
                         result[our_key] = sub_value
                     break
+                    
+        # Fallback for total subscription if activeCat was missing or zeroes
+        if not result['total'] or result['total'] == 0.0:
+            for graph_key in ('demandGraphALL', 'demandGraph'):
+                graph_data = detail.get(graph_key, {})
+                if isinstance(graph_data, dict):
+                    fallback_sub = graph_data.get('noOfTimesIssueSubscribed')
+                    if fallback_sub and fallback_sub != '-':
+                        try:
+                            result['total'] = float(str(fallback_sub).replace(',', '').strip())
+                            break
+                        except ValueError:
+                            pass
         
         return result
 
