@@ -611,7 +611,7 @@ class NSEClient:
             data_list = issue_info.get('dataList', [])
             if isinstance(data_list, list):
                 for item in data_list:
-                    if isinstance(item, dict) and item.get('title') == 'Price Range':
+                    if isinstance(item, dict) and item.get('title') in ('Price Range', 'Issue Price'):
                         val = item.get('value', '')
                         if val:
                             numbers = re.findall(r'[\d,]+\.?\d*', val.replace(',', ''))
@@ -641,13 +641,13 @@ class NSEClient:
                 except (ValueError, TypeError):
                     continue
                     
-        # Check issueInfo dataList for Bid Lot or Minimum Order Quantity
+        # Check issueInfo dataList for Bid Lot, Minimum Order Quantity, or Lot Size
         issue_info = detail.get('issueInfo', {})
         if isinstance(issue_info, dict):
             data_list = issue_info.get('dataList', [])
             if isinstance(data_list, list):
                 for item in data_list:
-                    if isinstance(item, dict) and item.get('title') in ('Bid Lot', 'Minimum Order Quantity'):
+                    if isinstance(item, dict) and item.get('title') in ('Bid Lot', 'Minimum Order Quantity', 'Lot Size', 'Market Lot'):
                         val = item.get('value', '')
                         if val:
                             numbers = re.findall(r'[\d,]+\.?\d*', val.replace(',', ''))

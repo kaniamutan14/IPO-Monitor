@@ -83,8 +83,8 @@ class ETFMonitor:
         
         if ltp and inav:
             try:
-                ltp = float(ltp)
-                inav = float(inav)
+                ltp = float(str(ltp).replace(',', '').strip())
+                inav = float(str(inav).replace(',', '').strip())
                 if ltp == 0:
                     return
                 diff = inav - ltp

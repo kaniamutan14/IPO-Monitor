@@ -172,8 +172,7 @@ class StateManager:
         if old_total is not None and new_total is not None:
             # Consider significant if changed by more than 0.5x or crossed a milestone
             diff = abs(new_total - old_total)
-            milestones = [1, 3, 5, 10, 20, 50, 100]
-            for m in milestones:
+            for m in SUBSCRIPTION_MILESTONES:
                 if old_total < m <= new_total:
                     return True
             return diff >= 0.5
