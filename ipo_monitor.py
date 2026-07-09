@@ -333,7 +333,7 @@ def process_listing_data(
             # Fallback: if past-issues has listing date but no price,
             # try historical equity endpoint for OHLC data
             if not listing_info['listing_price'] and listing_info.get('listing_date'):
-                logger.info(f"{symbol}: No listing price in past-issues, trying historical endpoint...")
+                logger.info(f"{symbol}: No listing price in past-issues, trying yfinance...")
                 historical = nse.get_listing_day_price(symbol, listing_info['listing_date'])
                 if historical and historical.get('open'):
                     listing_info['listing_price'] = historical['open']
