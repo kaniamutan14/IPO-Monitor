@@ -122,7 +122,7 @@ class NSEClient:
             from config import PLAYWRIGHT_TIMEOUT, PLAYWRIGHT_HEADLESS
             
             self._playwright = sync_playwright().start()
-            self._browser = self._playwright.firefox.launch(
+            self._browser = self._playwright.chromium.launch(
                 headless=PLAYWRIGHT_HEADLESS,
                 args=[
                     # Firefox doesn't use blink features flag
@@ -285,6 +285,10 @@ class NSEClient:
                         logger.warning(f"Auth error {response.status_code} from {url} in curl_cffi. Switching to playwright fallback...")
                         self.mode = "playwright"
                         self._session_initialized = False
+                        
+                    elif response.status_code == 404:
+                        logger.debug(f"HTTP 404 from {url} in curl_cffi. Resource not found.")
+                        return None
                         
                     else:
                         logger.error(f"HTTP {response.status_code} from {url} in curl_cffi")
