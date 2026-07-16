@@ -292,7 +292,10 @@ class StateManager:
         today = date.today()
         
         for symbol, data in list(self.tracked_ipos.items()):
-            if data.get("state") == IPOState.LISTED and data.get("listing_date"):
+            state = data.get("state")
+            
+            # Case 1: Successfully LISTED
+            if state == IPOState.LISTED and data.get("listing_date"):
                 try:
                     # Try multiple date formats
                     listing_date_str = data["listing_date"]
@@ -311,6 +314,27 @@ class StateManager:
                         
                 except Exception as e:
                     logger.warning(f"Error checking listing date for {symbol}: {e}")
+                    
+            # Case 2: Stuck in CLOSED (e.g. SME IPOs where data couldn't be fetched)
+            elif state == IPOState.CLOSED:
+                try:
+                    # Fallback cleanup: If it's been closed for over 14 days, archive it
+                    close_date_str = data.get("close_date")
+                    if close_date_str:
+                        close_date = None
+                        for fmt in ('%Y-%m-%d', '%d-%b-%Y', '%d-%B-%Y', '%d/%m/%Y'):
+                            try:
+                                close_date = datetime.strptime(close_date_str, fmt).date()
+                                break
+                            except ValueError:
+                                continue
+                                
+                        if close_date and (today - close_date).days > 14:
+                            data["state"] = IPOState.ARCHIVED
+                            archived.append(symbol)
+                            logger.info(f"{symbol}: Force Archived (stuck in CLOSED for {(today - close_date).days} days since close date)")
+                except Exception as e:
+                    logger.warning(f"Error checking close date for {symbol}: {e}")
         
         return archived
 

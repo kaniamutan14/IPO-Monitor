@@ -460,6 +460,30 @@ class NSEClient:
                 
         if df is None or df.empty:
             logger.warning(f"No historical data found for {symbol} on {start_date} via yfinance")
+            
+            # --- Fallback: Try NSE NextApi (getSymbolData) ---
+            logger.info(f"Fallback: Attempting to fetch listing price for {symbol} via NSE NextApi")
+            for series in ('EQ', 'ST', 'SM'):
+                url = f"https://www.nseindia.com/api/NextApi/apiClient/GetQuoteApi?functionName=getSymbolData&marketType=N&series={series}&symbol={symbol}"
+                data = self._request_with_retry(url)
+                if data and "equityResponse" in data and len(data["equityResponse"]) > 0:
+                    meta = data["equityResponse"][0].get("metaData", {})
+                    if "open" in meta and meta["open"] > 0:
+                        logger.info(f"Fallback successful for {symbol} (Series: {series})")
+                        result = {
+                            'open': float(meta.get("open", 0)),
+                            'high': float(meta.get("dayHigh", 0)),
+                            'low': float(meta.get("dayLow", 0)),
+                            'close': float(meta.get("lastPrice", meta.get("previousClose", 0)))
+                        }
+                        # Last price could be in orderBook
+                        order_book = data["equityResponse"][0].get("orderBook", {})
+                        if "lastPrice" in order_book and order_book["lastPrice"] > 0:
+                            result['close'] = float(order_book["lastPrice"])
+                            
+                        logger.info(f"Listing day prices for {symbol} (from NextApi): {result}")
+                        return result
+                        
             return None
             
         try:
