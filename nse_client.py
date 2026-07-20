@@ -81,7 +81,7 @@ class NSEClient:
             logger.error("curl_cffi is not installed on the system.")
             return False
         try:
-            self.session = curl_requests.Session(impersonate="chrome110")
+            self.session = curl_requests.Session(impersonate="chrome")
             self.session.headers.update(NSE_HEADERS)
             
             logger.info("Initializing NSE curl_cffi session...")
