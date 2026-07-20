@@ -26,13 +26,19 @@ class ETFMonitor:
         
     def get_high_volume_etfs(self) -> list[str]:
         logger.info("Fetching Master ETF List...")
-        url = "https://www.nseindia.com/api/etf"
+        url = "https://www.nseindia.com/api/NextApi/apiClient/marketWatchApi?functionName=getETFData&symbol=all"
         
         data = self.client._request_with_retry(url)
         if not data:
             raise Exception("Failed to fetch Master ETF List from NSE.")
             
-        etf_list = data.get('data', [])
+        # Handle nested data structure from new API
+        etf_data = data.get('data', [])
+        if isinstance(etf_data, dict):
+            etf_list = etf_data.get('data', [])
+        else:
+            etf_list = etf_data
+            
         filtered_list = []
         for item in etf_list:
             symbol = item.get('symbol')
