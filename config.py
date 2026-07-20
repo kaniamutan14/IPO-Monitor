@@ -22,13 +22,7 @@ NSE_MAIN_PAGE = NSE_BASE_URL
 
 # NSE Request Config
 NSE_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer": "https://www.nseindia.com/market-data/all-upcoming-issues-ipo",
-    "X-Requested-With": "XMLHttpRequest",
-    "Connection": "keep-alive",
+    "X-Requested-With": "XMLHttpRequest"
 }
 NSE_REQUEST_DELAY = (1.5, 3.0)  # Random delay range in seconds between API calls
 NSE_MAX_RETRIES = 2
