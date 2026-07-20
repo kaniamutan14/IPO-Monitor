@@ -81,7 +81,7 @@ class NSEClient:
             logger.error("curl_cffi is not installed on the system.")
             return False
         try:
-            self.session = curl_requests.Session(impersonate="chrome")
+            self.session = curl_requests.Session(impersonate="chrome110")
             self.session.headers.update(NSE_HEADERS)
             
             logger.info("Initializing NSE curl_cffi session...")
@@ -330,6 +330,12 @@ class NSEClient:
                     if attempt < NSE_MAX_RETRIES:
                         time.sleep(2)
                         continue
+                        
+            # If we exhausted retries in playwright mode and it failed,
+            # revert to curl_cffi for the next symbol instead of staying trapped in Playwright.
+            if self.mode == "playwright":
+                logger.info("Playwright fetch failed completely. Reverting mode back to curl_cffi for future requests.")
+                self.mode = "curl_cffi"
         
         return None
 
