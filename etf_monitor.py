@@ -65,9 +65,6 @@ class ETFMonitor:
             "symbol": symbol
         }
         
-        # Referer header is sometimes required by NSE for symbol data
-        if self.client.mode == "curl_cffi" and self.client.session:
-            self.client.session.headers["Referer"] = f"https://www.nseindia.com/get-quotes/equity?symbol={symbol}"
             
         data = self.client._request_with_retry(url, params=params)
         
