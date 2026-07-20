@@ -35,7 +35,7 @@ NSE_MAX_RETRIES = 2
 
 # Playwright Settings
 PLAYWRIGHT_TIMEOUT = 30000
-PLAYWRIGHT_HEADLESS = False
+PLAYWRIGHT_HEADLESS = True
 
 # State
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")

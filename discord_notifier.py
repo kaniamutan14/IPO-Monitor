@@ -582,7 +582,7 @@ def send_weekly_digest(
         for ipo in listed_ipos:
             gain_str = _fmt_pct(ipo.get('gain_pct'))
             pnl = ipo.get('net_pnl')
-            pnl_str = _fmt_price(pnl) if pnl else "N/A"
+            pnl_str = _fmt_price(pnl) if pnl is not None else "N/A"
             lines.append(
                 f"🔔 **{ipo['company_name']}** ({ipo['symbol']})\n"
                 f"    {_fmt_price(ipo.get('issue_price'))} → {_fmt_price(ipo.get('listing_price'))} ({gain_str})\n"

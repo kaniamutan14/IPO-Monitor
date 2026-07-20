@@ -358,6 +358,7 @@ def process_listing_data(
                     listing_close_price=listing_info.get('listing_close_price'),
                     listing_date=listing_info.get('listing_date'),
                     listing_gain_pct=gain_pct,
+                    issue_price=issue_price,
                 )
                 state.transition_state(symbol, IPOState.LISTED)
                 
@@ -427,7 +428,7 @@ def generate_weekly_digest(
     
     listed_ipos = []
     for sym, data in state.get_ipos_by_state(IPOState.LISTED).items():
-        issue_price = data.get('issue_price_band', {}).get('max')
+        issue_price = data.get('issue_price') or data.get('issue_price_band', {}).get('max')
         listing_price = data.get('listing_price')
         lot_size = data.get('lot_size')
         gain_pct = data.get('listing_gain_pct')
