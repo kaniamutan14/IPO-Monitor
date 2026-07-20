@@ -261,7 +261,7 @@ class NSEClient:
                     logger.debug(f"Waiting {delay:.1f}s before curl_cffi request...")
                     time.sleep(delay)
                     
-                    response = self.session.get(url, params=params, timeout=15)
+                    response = self.session.get(url, params=params, timeout=8)
                     
                     if response.status_code == 200:
                         content_type = response.headers.get('Content-Type', '')
@@ -293,8 +293,9 @@ class NSEClient:
                     else:
                         logger.error(f"HTTP {response.status_code} from {url} in curl_cffi")
                         if attempt < NSE_MAX_RETRIES:
+                            if attempt == NSE_MAX_RETRIES - 1:
+                                self._session_initialized = False
                             time.sleep(2)
-                            self._session_initialized = False
                             continue
                         else:
                             logger.info("Transitioning to playwright mode after HTTP error retries exhausted...")
@@ -306,7 +307,11 @@ class NSEClient:
                 except Exception as e:
                     logger.error(f"curl_cffi request error for {url}: {e}")
                     if attempt < NSE_MAX_RETRIES:
-                        self._session_initialized = False
+                        if attempt == NSE_MAX_RETRIES - 1:
+                            logger.info("Re-initializing session before final curl_cffi retry...")
+                            self._session_initialized = False
+                        else:
+                            time.sleep(2)
                         continue
                     else:
                         logger.info("Transitioning to playwright mode after request exception...")

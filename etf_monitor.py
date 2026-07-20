@@ -9,7 +9,7 @@ import discord_notifier
 
 MIN_VOLUME = 200000
 MIN_PROFIT_PERCENT = 0.7
-DELAY_BETWEEN_CHECKS = 20
+DELAY_BETWEEN_CHECKS = 3
 SESSION_REFRESH_EVERY = 15
 
 # Configure logging to console
